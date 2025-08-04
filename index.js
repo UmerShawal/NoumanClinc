@@ -1,6 +1,7 @@
+// index.js
+
 require('dotenv').config();
 const express  = require('express');
-const cors     = require('cors');
 const mongoose = require('mongoose');
 const bcrypt   = require('bcryptjs');
 const User     = require('./models/User');
@@ -8,20 +9,20 @@ const authRoutes        = require('./routes/auth');
 const appointmentRoutes = require('./routes/appointments');
 
 async function main() {
-  // 0) Env check
+  // 0) Env vars check
   console.log('🔑 FRONTEND_URL     =', process.env.FRONTEND_URL);
   console.log('🔑 DEV_FRONTEND_URL =', process.env.DEV_FRONTEND_URL);
   console.log('🔑 DEV_FRONTEND_URL2=', process.env.DEV_FRONTEND_URL2);
   console.log('🔑 MONGO_URI        =', process.env.MONGO_URI);
 
-  // 1) Connect to MongoDB
+  // 1) MongoDB connect
   await mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser:    true,
     useUnifiedTopology: true
   });
   console.log('✅ MongoDB connected');
 
-  // 2) Seed Admin
+  // 2) Seed Admin user
   const { ADMIN_EMAIL: email, ADMIN_PASS: pass, ADMIN_NAME: name='Admin' } = process.env;
   if (email && pass) {
     let admin = await User.findOne({ email });
@@ -40,21 +41,26 @@ async function main() {
   const app = express();
   const PORT = process.env.PORT || 3000;
 
-  // 4) CORS setup
-  const allowedOrigins = [
-    process.env.FRONTEND_URL,      // https://nouman-clinc.vercel.app
-    process.env.DEV_FRONTEND_URL,  // http://localhost:3000
-    process.env.DEV_FRONTEND_URL2  // http://localhost:3001
-  ].filter(Boolean);
+  // 4) Manual CORS middleware (OPTIONS + headers)
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowed = [
+      process.env.FRONTEND_URL,     // https://nouman-clinc.vercel.app
+      process.env.DEV_FRONTEND_URL, // http://localhost:3000
+      process.env.DEV_FRONTEND_URL2 // http://localhost:3001
+    ].filter(Boolean);
 
-  app.use(cors({
-    origin: allowedOrigins,
-    methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-    credentials: true,
-    optionsSuccessStatus: 204
-  }));
-  // for explicit preflight on all routes
-  app.options('*', cors());
+    if (allowed.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
 
   // 5) JSON parser
   app.use(express.json());

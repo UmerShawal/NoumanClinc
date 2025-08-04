@@ -1,19 +1,22 @@
 // client/src/api/api.js
 
-// Dev vs Prod base URL uthane ka logic
+// 1) Dev vs Prod ke liye base URL set karo
 const getBase = () => {
   if (process.env.NODE_ENV === 'development') {
-    // local backend
-    return process.env.REACT_APP_DEV_API_URL.replace(/\/+$/, '');
+    // local backend ke liye ENV var, warna default localhost
+    return (
+      process.env.REACT_APP_DEV_API_URL?.replace(/\/+$/, '') ||
+      'http://localhost:3000'
+    );
   }
-  // production backend
-  return process.env.REACT_APP_API_URL.replace(/\/+$/, '');
+  // production me relative path use karo taake Vercel rewrites chalein
+  return process.env.REACT_APP_API_URL?.replace(/\/+$/, '') || '';
 };
 
 const BASE = getBase();
 console.log('▶️ Using API_BASE =', BASE);
 
-// Token helpers
+// 2) Token helpers
 export function setToken(token) {
   localStorage.setItem('token', token);
 }
@@ -24,11 +27,13 @@ export function removeToken() {
   localStorage.removeItem('token');
 }
 
-// apiFetch implementation
+// 3) apiFetch function
 export async function apiFetch(path, options = {}) {
-  // remove leading slash, then join
+  // agar full URL diya ho to usi ko use karo
+  const isAbsolute = /^https?:\/\//i.test(path);
   const cleanPath = path.replace(/^\/+/, '');
-  const url = `${BASE}/${cleanPath}`;
+  const url = isAbsolute ? path : `${BASE}/${cleanPath}`;
+
   console.log('👉 apiFetch ->', url, options);
 
   const token = getToken();
@@ -49,7 +54,7 @@ export async function apiFetch(path, options = {}) {
   }
 
   if (!res.ok) {
-    // optionally clear token on 401/403
+    // agar auth error ho to token remove kar do
     if (res.status === 401 || res.status === 403) removeToken();
     throw new Error(data.message || `Request to ${url} failed with status ${res.status}`);
   }

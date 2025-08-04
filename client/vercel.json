@@ -2,15 +2,15 @@
   "rewrites": [
     {
       "source": "/auth/:path*",
-      "destination": "https://edd4807d-2a30-43e8-a648-a4170dc74133-00-3curaqdytimy8.pike.replit.dev/auth/:path*"
+      "destination": "https://nouman-clinc-backend.vercel.app/auth/:path*"
     },
     {
       "source": "/appointments/:path*",
-      "destination": "https://edd4807d-2a30-43e8-a648-a4170dc74133-00-3curaqdytimy8.pike.replit.dev/appointments/:path*"
+      "destination": "https://nouman-clinc-backend.vercel.app/appointments/:path*"
     },
     {
       "source": "/ping",
-      "destination": "https://edd4807d-2a30-43e8-a648-a4170dc74133-00-3curaqdytimy8.pike.replit.dev/ping"
+      "destination": "https://nouman-clinc-backend.vercel.app/ping"
     }
   ]
 }

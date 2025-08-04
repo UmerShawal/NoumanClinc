@@ -1,41 +1,41 @@
 // routes/appointments.js
-const express    = require('express');
-const { google } = require('googleapis');
+const express     = require('express');
+const { google }  = require('googleapis');
 const Appointment = require('../models/Appointment');
-const auth       = require('../middleware/auth'); // JWT middleware
-const router     = express.Router();
+const auth        = require('../middleware/auth');
+const router      = express.Router();
 
 // 1) Service-account JSON parse karo
 if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
   throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_JSON');
 }
-let serviceAccount;
+let sa;
 try {
-  serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  sa = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
 } catch (err) {
-  console.error('❌ Invalid GOOGLE_SERVICE_ACCOUNT_JSON:', err);
+  console.error('Invalid GOOGLE_SERVICE_ACCOUNT_JSON:', err);
   throw err;
 }
 
-// 2) Private key me escaped "\n" convert karo
-const privateKey = serviceAccount.private_key.replace(/\\n/g, '\n');
+// 2) Private key me newline restore karo
+const privateKey = sa.private_key.replace(/\\n/g, '\n');
 
-// 3) JWT client aur Calendar API setup
+// 3) JWT client + Calendar API
 const jwtClient = new google.auth.JWT(
-  serviceAccount.client_email,
+  sa.client_email,
   null,
   privateKey,
   ['https://www.googleapis.com/auth/calendar']
 );
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
-// 4) Appointment booking endpoint
+// 4) Booking endpoint (auth lagaao)
 router.post('/', auth, async (req, res) => {
   try {
     const { name, phone, area, disease, datetime } = req.body;
     const dt = new Date(datetime);
 
-    // a) DB me record create karo (patient id auth se)
+    // a) DB me save karo (patient from req.user.id)
     const appt = await Appointment.create({
       patient:       req.user.id,
       name,
@@ -46,9 +46,9 @@ router.post('/', auth, async (req, res) => {
       status:        'booked'
     });
 
-    // b) Google Calendar me event insert karo
+    // b) Google Calendar me event insert
     await jwtClient.authorize();
-    const eventRes = await calendar.events.insert({
+    const ev = await calendar.events.insert({
       calendarId: process.env.CALENDAR_ID,
       resource: {
         summary:     `Appointment: ${name}`,
@@ -58,15 +58,14 @@ router.post('/', auth, async (req, res) => {
       }
     });
 
-    // c) Event ID DB me save karo
-    appt.gcal_event_id = eventRes.data.id;
+    // c) Save event ID
+    appt.gcal_event_id = ev.data.id;
     await appt.save();
 
-    return res.status(201).json(appt);
-
+    res.status(201).json(appt);
   } catch (err) {
-    console.error('❌ Booking error:', err);
-    return res.status(500).json({ message: err.message });
+    console.error('Booking error:', err);
+    res.status(500).json({ message: err.message });
   }
 });
 
